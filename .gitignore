@@ -1,0 +1,36 @@
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+*.swp
+*.DS_Store
+*.log
+*.db
+*.pdb
+*.cache
+*.ide
+*.ncrunch*
+TestResults/
+*.localhistory/
+*.vscode/
+.env
+.env.*
+secrets.json
+appsettings.Local.json
+appsettings.*.local.json
+appsettings.json
+# Rider
+.idea/
+# JetBrains
+*.DotSettings.user
+# Resharper
+_ReSharper*/
+# Mac
+.DS_Store
+# Windows
+Thumbs.db
+# npm
+node_modules/

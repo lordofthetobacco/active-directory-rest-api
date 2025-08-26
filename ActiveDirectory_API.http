@@ -1,0 +1,93 @@
+### Active Directory API Test Requests
+
+### Health Checks
+GET {{baseUrl}}/api/health
+GET {{baseUrl}}/api/health/ad
+
+### User Operations
+GET {{baseUrl}}/api/users/john.doe
+GET {{baseUrl}}/api/users/email/john.doe@company.com
+GET {{baseUrl}}/api/users/dn/CN=John Doe,OU=Users,DC=company,DC=com
+
+### User Search
+POST {{baseUrl}}/api/users/search
+Content-Type: application/json
+
+{
+  "searchTerm": "john",
+  "maxResults": 50,
+  "attributes": ["displayName", "email", "department"]
+}
+
+### User Authentication
+POST {{baseUrl}}/api/users/authenticate
+Content-Type: application/json
+
+{
+  "username": "john.doe",
+  "password": "password123"
+}
+
+### User Groups
+GET {{baseUrl}}/api/users/john.doe/groups
+GET {{baseUrl}}/api/users/john.doe/groups/Administrators/ismember
+
+### Create User
+POST {{baseUrl}}/api/users
+Content-Type: application/json
+
+{
+  "user": {
+    "samAccountName": "jane.smith",
+    "displayName": "Jane Smith",
+    "givenName": "Jane",
+    "surname": "Smith",
+    "email": "jane.smith@company.com",
+    "enabled": true
+  },
+  "password": "SecurePassword123!"
+}
+
+### Update User
+PUT {{baseUrl}}/api/users/jane.smith
+Content-Type: application/json
+
+{
+  "samAccountName": "jane.smith",
+  "displayName": "Jane Smith",
+  "givenName": "Jane",
+  "surname": "Smith",
+  "email": "jane.smith@company.com",
+  "enabled": true,
+  "department": "IT",
+  "title": "Software Developer"
+}
+
+### User Management
+POST {{baseUrl}}/api/users/jane.smith/enable
+POST {{baseUrl}}/api/users/jane.smith/disable
+POST {{baseUrl}}/api/users/jane.smith/reset-password
+Content-Type: application/json
+
+{
+  "newPassword": "NewSecurePassword123!"
+}
+
+POST {{baseUrl}}/api/users/jane.smith/unlock
+DELETE {{baseUrl}}/api/users/jane.smith
+
+### Group Operations
+GET {{baseUrl}}/api/groups/Administrators
+GET {{baseUrl}}/api/groups/Users
+
+### Group Search
+POST {{baseUrl}}/api/groups/search
+Content-Type: application/json
+
+{
+  "searchTerm": "admin",
+  "maxResults": 20
+}
+
+### Variables
+@baseUrl = https://localhost:7001
