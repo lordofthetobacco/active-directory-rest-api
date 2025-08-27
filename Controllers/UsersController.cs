@@ -27,6 +27,18 @@ public class UsersController : ControllerBase
         return Ok(user);
     }
 
+    [HttpGet("{samAccountName}/properties")]
+    public async Task<ActionResult<ActiveDirectoryUser>> GetUserWithProperties(
+        string samAccountName, 
+        [FromQuery] string[]? properties = null)
+    {
+        var user = await _adService.GetUserAsync(samAccountName, properties);
+        if (user == null)
+            return NotFound();
+        
+        return Ok(user);
+    }
+
     [HttpGet("email/{email}")]
     public async Task<ActionResult<ActiveDirectoryUser>> GetUserByEmail(string email)
     {
@@ -37,10 +49,34 @@ public class UsersController : ControllerBase
         return Ok(user);
     }
 
+    [HttpGet("email/{email}/properties")]
+    public async Task<ActionResult<ActiveDirectoryUser>> GetUserByEmailWithProperties(
+        string email, 
+        [FromQuery] string[]? properties = null)
+    {
+        var user = await _adService.GetUserByEmailAsync(email, properties);
+        if (user == null)
+            return NotFound();
+        
+        return Ok(user);
+    }
+
     [HttpGet("dn/{distinguishedName}")]
     public async Task<ActionResult<ActiveDirectoryUser>> GetUserByDN(string distinguishedName)
     {
         var user = await _adService.GetUserByDNAsync(distinguishedName);
+        if (user == null)
+            return NotFound();
+        
+        return Ok(user);
+    }
+
+    [HttpGet("dn/{distinguishedName}/properties")]
+    public async Task<ActionResult<ActiveDirectoryUser>> GetUserByDNWithProperties(
+        string distinguishedName, 
+        [FromQuery] string[]? properties = null)
+    {
+        var user = await _adService.GetUserByDNAsync(distinguishedName, properties);
         if (user == null)
             return NotFound();
         
@@ -108,20 +144,30 @@ public class UsersController : ControllerBase
         return BadRequest("Failed to enable user");
     }
 
-    [HttpPost("{samAccountName}/disable")]
-    public async Task<ActionResult<bool>> DisableUser(string samAccountName)
+    [HttpPost("upn/{upn}/enable")]
+    public async Task<ActionResult<bool>> EnableUserByUPN(string upn)
     {
-        var success = await _adService.DisableUserAsync(samAccountName);
+        var success = await _adService.EnableUserByUPNAsync(upn);
         if (success)
             return Ok(success);
         
-        return BadRequest("Failed to disable user");
+        return BadRequest("Failed to enable user");
     }
 
     [HttpPost("{samAccountName}/reset-password")]
     public async Task<ActionResult<bool>> ResetPassword(string samAccountName, [FromBody] ResetPasswordRequest request)
     {
         var success = await _adService.ResetPasswordAsync(samAccountName, request.NewPassword);
+        if (success)
+            return Ok(success);
+        
+        return BadRequest("Failed to reset password");
+    }
+
+    [HttpPost("upn/{upn}/reset-password")]
+    public async Task<ActionResult<bool>> ResetPasswordByUPN(string upn, [FromBody] ResetPasswordRequest request)
+    {
+        var success = await _adService.ResetPasswordByUPNAsync(upn, request.NewPassword);
         if (success)
             return Ok(success);
         
@@ -138,6 +184,56 @@ public class UsersController : ControllerBase
         return BadRequest("Failed to unlock user");
     }
 
+    [HttpPost("upn/{upn}/unlock")]
+    public async Task<ActionResult<bool>> UnlockUserByUPN(string upn)
+    {
+        var success = await _adService.UnlockUserByUPNAsync(upn);
+        if (success)
+            return Ok(success);
+        
+        return BadRequest("Failed to unlock user");
+    }
+
+    [HttpPost("{samAccountName}/disable")]
+    public async Task<ActionResult<bool>> DisableUser(string samAccountName)
+    {
+        var success = await _adService.DisableUserAsync(samAccountName);
+        if (success)
+            return Ok(success);
+        
+        return BadRequest("Failed to disable user");
+    }
+
+    [HttpPost("upn/{upn}/disable")]
+    public async Task<ActionResult<bool>> DisableUserByUPN(string upn)
+    {
+        var success = await _adService.DisableUserByUPNAsync(upn);
+        if (success)
+            return Ok(success);
+        
+        return BadRequest("Failed to disable user");
+    }
+
+    [HttpDelete("{samAccountName}")]
+    public async Task<ActionResult<bool>> DeleteUser(string samAccountName)
+    {
+        var success = await _adService.DeleteUserAsync(samAccountName);
+        if (success)
+            return Ok(success);
+        
+        return BadRequest("Failed to delete user");
+    }
+
+    [HttpDelete("upn/{upn}")]
+    public async Task<ActionResult<bool>> DeleteUserByUPN(string upn)
+    {
+        var success = await _adService.DeleteUserByUPNAsync(upn);
+        if (success)
+            return Ok(success);
+        
+        return BadRequest("Failed to delete user");
+    }
+
     [HttpGet("{samAccountName}/extension-attributes")]
     public async Task<ActionResult<Dictionary<string, object>>> GetUserExtensionAttributes(
         string samAccountName, 
@@ -146,6 +242,18 @@ public class UsersController : ControllerBase
         var extensionAttributes = await _adService.GetUserExtensionAttributesAsync(samAccountName, attributes);
         if (extensionAttributes.Count == 0)
             return NotFound($"No extension attributes found for user {samAccountName}");
+        
+        return Ok(extensionAttributes);
+    }
+
+    [HttpGet("upn/{upn}/extension-attributes")]
+    public async Task<ActionResult<Dictionary<string, object>>> GetUserExtensionAttributesByUPN(
+        string upn, 
+        [FromQuery] string[]? attributes = null)
+    {
+        var extensionAttributes = await _adService.GetUserExtensionAttributesByUPNAsync(upn, attributes);
+        if (extensionAttributes.Count == 0)
+            return NotFound($"No extension attributes found for user {upn}");
         
         return Ok(extensionAttributes);
     }

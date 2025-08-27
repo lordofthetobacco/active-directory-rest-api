@@ -18,6 +18,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
 
     public async Task<ActiveDirectoryUser?> GetUserAsync(string samAccountName)
     {
+        return await GetUserAsync(samAccountName, null);
+    }
+
+    public async Task<ActiveDirectoryUser?> GetUserAsync(string samAccountName, string[]? properties)
+    {
         try
         {
             using var context = CreatePrincipalContext();
@@ -25,7 +30,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
             
             if (userPrincipal == null) return null;
             
-            return await Task.FromResult(MapToActiveDirectoryUser(userPrincipal));
+            return await Task.FromResult(MapToActiveDirectoryUser(userPrincipal, properties));
         }
         catch (Exception ex)
         {
@@ -36,6 +41,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
 
     public async Task<ActiveDirectoryUser?> GetUserByEmailAsync(string email)
     {
+        return await GetUserByEmailAsync(email, null);
+    }
+
+    public async Task<ActiveDirectoryUser?> GetUserByEmailAsync(string email, string[]? properties)
+    {
         try
         {
             using var context = CreatePrincipalContext();
@@ -43,7 +53,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
             
             if (userPrincipal == null) return null;
             
-            return await Task.FromResult(MapToActiveDirectoryUser(userPrincipal));
+            return await Task.FromResult(MapToActiveDirectoryUser(userPrincipal, properties));
         }
         catch (Exception ex)
         {
@@ -54,6 +64,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
 
     public async Task<ActiveDirectoryUser?> GetUserByDNAsync(string distinguishedName)
     {
+        return await GetUserByDNAsync(distinguishedName, null);
+    }
+
+    public async Task<ActiveDirectoryUser?> GetUserByDNAsync(string distinguishedName, string[]? properties)
+    {
         try
         {
             using var context = CreatePrincipalContext();
@@ -61,7 +76,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
             
             if (userPrincipal == null) return null;
             
-            return await Task.FromResult(MapToActiveDirectoryUser(userPrincipal));
+            return await Task.FromResult(MapToActiveDirectoryUser(userPrincipal, properties));
         }
         catch (Exception ex)
         {
@@ -440,6 +455,88 @@ public class ActiveDirectoryService : IActiveDirectoryService
         }
     }
 
+    public async Task<Dictionary<string, object>> GetUserExtensionAttributesByUPNAsync(string upn, string[]? attributes = null)
+    {
+        try
+        {
+            using var context = CreatePrincipalContext();
+            var userPrincipal = UserPrincipal.FindByIdentity(context, IdentityType.UserPrincipalName, upn);
+            
+            if (userPrincipal == null)
+            {
+                _logger.LogError("User {UPN} not found", upn);
+                return new Dictionary<string, object>();
+            }
+            
+            var directoryEntry = userPrincipal.GetUnderlyingObject() as DirectoryEntry;
+            if (directoryEntry == null)
+            {
+                _logger.LogError("Failed to get directory entry for user {UPN}", upn);
+                return new Dictionary<string, object>();
+            }
+            
+            var result = new Dictionary<string, object>();
+            
+            if (attributes == null || attributes.Length == 0)
+            {
+                foreach (string propertyName in directoryEntry.Properties.PropertyNames)
+                {
+                    var property = directoryEntry.Properties[propertyName];
+                    if (property.Count > 0)
+                    {
+                        if (property.Count == 1)
+                        {
+                            result[propertyName] = property.Value!;
+                        }
+                        else
+                        {
+                            var values = new List<object>();
+                            foreach (var value in property)
+                            {
+                                values.Add(value);
+                            }
+                            result[propertyName] = values;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                foreach (var attributeName in attributes)
+                {
+                    if (directoryEntry.Properties.Contains(attributeName))
+                    {
+                        var property = directoryEntry.Properties[attributeName];
+                        if (property.Count > 0)
+                        {
+                            if (property.Count == 1)
+                            {
+                                result[attributeName] = property.Value!;
+                            }
+                            else
+                            {
+                                var values = new List<object>();
+                                foreach (var value in property)
+                                {
+                                    values.Add(value);
+                                }
+                                result[attributeName] = values;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            _logger.LogInformation("Retrieved {Count} extension attributes for user {UPN}", result.Count, upn);
+            return await Task.FromResult(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting extension attributes for user {UPN}", upn);
+            return new Dictionary<string, object>();
+        }
+    }
+
     public async Task<IEnumerable<ActiveDirectoryUser>> SearchUsersByFullNameAsync(string fullName, int maxResults = 10)
     {
         try
@@ -749,6 +846,25 @@ public class ActiveDirectoryService : IActiveDirectoryService
         }
     }
 
+    public async Task<bool> DeleteUserByUPNAsync(string upn)
+    {
+        try
+        {
+            using var context = CreatePrincipalContext();
+            var userPrincipal = UserPrincipal.FindByIdentity(context, IdentityType.UserPrincipalName, upn);
+            
+            if (userPrincipal == null) return false;
+            
+            userPrincipal.Delete();
+            return await Task.FromResult(true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting user by UPN {UPN}", upn);
+            return false;
+        }
+    }
+
     public async Task<bool> EnableUserAsync(string samAccountName)
     {
         try
@@ -778,6 +894,39 @@ public class ActiveDirectoryService : IActiveDirectoryService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error enabling user {SamAccountName}", samAccountName);
+            return false;
+        }
+    }
+
+    public async Task<bool> EnableUserByUPNAsync(string upn)
+    {
+        try
+        {
+            using var context = CreatePrincipalContext();
+            var userPrincipal = UserPrincipal.FindByIdentity(context, IdentityType.UserPrincipalName, upn);
+            
+            if (userPrincipal == null) return false;
+            
+            if (userPrincipal.Enabled == true)
+            {
+                _logger.LogInformation("User {UPN} is already enabled", upn);
+                return true;
+            }
+            
+            userPrincipal.Enabled = true;
+            userPrincipal.Save();
+            
+            _logger.LogInformation("Successfully enabled user {UPN}", upn);
+            return await Task.FromResult(true);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogError(ex, "Access denied when trying to enable user {UPN}. Check if the service account has insufficient permissions.", upn);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error enabling user {UPN}", upn);
             return false;
         }
     }
@@ -815,6 +964,39 @@ public class ActiveDirectoryService : IActiveDirectoryService
         }
     }
 
+    public async Task<bool> DisableUserByUPNAsync(string upn)
+    {
+        try
+        {
+            using var context = CreatePrincipalContext();
+            var userPrincipal = UserPrincipal.FindByIdentity(context, IdentityType.UserPrincipalName, upn);
+            
+            if (userPrincipal == null) return false;
+            
+            if (userPrincipal.Enabled == false)
+            {
+                _logger.LogInformation("User {UPN} is already disabled", upn);
+                return true;
+            }
+            
+            userPrincipal.Enabled = false;
+            userPrincipal.Save();
+            
+            _logger.LogInformation("Successfully disabled user {UPN}", upn);
+            return await Task.FromResult(true);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogError(ex, "Access denied when trying to disable user {UPN}. Check if the service account has insufficient permissions.", upn);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error disabling user {UPN}", upn);
+            return false;
+        }
+    }
+
     public async Task<bool> ResetPasswordAsync(string samAccountName, string newPassword)
     {
         try
@@ -835,6 +1017,26 @@ public class ActiveDirectoryService : IActiveDirectoryService
         }
     }
 
+    public async Task<bool> ResetPasswordByUPNAsync(string upn, string newPassword)
+    {
+        try
+        {
+            using var context = CreatePrincipalContext();
+            var userPrincipal = UserPrincipal.FindByIdentity(context, IdentityType.UserPrincipalName, upn);
+            
+            if (userPrincipal == null) return false;
+            
+            userPrincipal.SetPassword(newPassword);
+            userPrincipal.Save();
+            return await Task.FromResult(true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resetting password for user {UPN}", upn);
+            return false;
+        }
+    }
+
     public async Task<bool> UnlockUserAsync(string samAccountName)
     {
         try
@@ -851,6 +1053,26 @@ public class ActiveDirectoryService : IActiveDirectoryService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error unlocking user {SamAccountName}", samAccountName);
+            return false;
+        }
+    }
+
+    public async Task<bool> UnlockUserByUPNAsync(string upn)
+    {
+        try
+        {
+            using var context = CreatePrincipalContext();
+            var userPrincipal = UserPrincipal.FindByIdentity(context, IdentityType.UserPrincipalName, upn);
+            
+            if (userPrincipal == null) return false;
+            
+            userPrincipal.UnlockAccount();
+            userPrincipal.Save();
+            return await Task.FromResult(true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error unlocking user {UPN}", upn);
             return false;
         }
     }
@@ -903,6 +1125,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
 
     private static ActiveDirectoryUser MapToActiveDirectoryUser(UserPrincipal userPrincipal)
     {
+        return MapToActiveDirectoryUser(userPrincipal, null);
+    }
+
+    private static ActiveDirectoryUser MapToActiveDirectoryUser(UserPrincipal userPrincipal, string[]? properties)
+    {
         var memberOf = new List<string>();
         try
         {
@@ -924,27 +1151,94 @@ public class ActiveDirectoryService : IActiveDirectoryService
             memberOf = new List<string>();
         }
 
-        return new ActiveDirectoryUser
+        var user = new ActiveDirectoryUser();
+
+        if (properties == null || properties.Length == 0)
         {
-            DistinguishedName = userPrincipal.DistinguishedName ?? string.Empty,
-            SamAccountName = userPrincipal.SamAccountName ?? string.Empty,
-            DisplayName = userPrincipal.DisplayName ?? string.Empty,
-            GivenName = userPrincipal.GivenName ?? string.Empty,
-            Surname = userPrincipal.Surname ?? string.Empty,
-            Email = userPrincipal.EmailAddress ?? string.Empty,
-            UserPrincipalName = userPrincipal.UserPrincipalName ?? string.Empty,
-            Enabled = userPrincipal.Enabled ?? false,
-            LastLogon = userPrincipal.LastLogon,
-            PasswordLastSet = userPrincipal.LastPasswordSet,
-            AccountExpires = userPrincipal.AccountExpirationDate,
-            MemberOf = memberOf.ToArray(),
-            Department = GetPropertyValue(userPrincipal, "department") ?? string.Empty,
-            Title = GetPropertyValue(userPrincipal, "title") ?? string.Empty,
-            Office = GetPropertyValue(userPrincipal, "physicalDeliveryOfficeName") ?? string.Empty,
-            Phone = GetPropertyValue(userPrincipal, "telephoneNumber") ?? string.Empty,
-            Mobile = GetPropertyValue(userPrincipal, "mobile") ?? string.Empty,
-            Manager = GetPropertyValue(userPrincipal, "manager") ?? string.Empty
-        };
+            user.DistinguishedName = userPrincipal.DistinguishedName ?? string.Empty;
+            user.SamAccountName = userPrincipal.SamAccountName ?? string.Empty;
+            user.DisplayName = userPrincipal.DisplayName ?? string.Empty;
+            user.GivenName = userPrincipal.GivenName ?? string.Empty;
+            user.Surname = userPrincipal.Surname ?? string.Empty;
+            user.Email = userPrincipal.EmailAddress ?? string.Empty;
+            user.UserPrincipalName = userPrincipal.UserPrincipalName ?? string.Empty;
+            user.Enabled = userPrincipal.Enabled ?? false;
+            user.LastLogon = userPrincipal.LastLogon;
+            user.PasswordLastSet = userPrincipal.LastPasswordSet;
+            user.AccountExpires = userPrincipal.AccountExpirationDate;
+            user.MemberOf = memberOf.ToArray();
+            user.Department = GetPropertyValue(userPrincipal, "department") ?? string.Empty;
+            user.Title = GetPropertyValue(userPrincipal, "title") ?? string.Empty;
+            user.Office = GetPropertyValue(userPrincipal, "physicalDeliveryOfficeName") ?? string.Empty;
+            user.Phone = GetPropertyValue(userPrincipal, "telephoneNumber") ?? string.Empty;
+            user.Mobile = GetPropertyValue(userPrincipal, "mobile") ?? string.Empty;
+            user.Manager = GetPropertyValue(userPrincipal, "manager") ?? string.Empty;
+        }
+        else
+        {
+            foreach (var property in properties)
+            {
+                switch (property.ToLower())
+                {
+                    case "distinguishedname":
+                        user.DistinguishedName = userPrincipal.DistinguishedName ?? string.Empty;
+                        break;
+                    case "samaccountname":
+                        user.SamAccountName = userPrincipal.SamAccountName ?? string.Empty;
+                        break;
+                    case "displayname":
+                        user.DisplayName = userPrincipal.DisplayName ?? string.Empty;
+                        break;
+                    case "givenname":
+                        user.GivenName = userPrincipal.GivenName ?? string.Empty;
+                        break;
+                    case "surname":
+                        user.Surname = userPrincipal.Surname ?? string.Empty;
+                        break;
+                    case "email":
+                        user.Email = userPrincipal.EmailAddress ?? string.Empty;
+                        break;
+                    case "userprincipalname":
+                        user.UserPrincipalName = userPrincipal.UserPrincipalName ?? string.Empty;
+                        break;
+                    case "enabled":
+                        user.Enabled = userPrincipal.Enabled ?? false;
+                        break;
+                    case "lastlogon":
+                        user.LastLogon = userPrincipal.LastLogon;
+                        break;
+                    case "passwordlastset":
+                        user.PasswordLastSet = userPrincipal.LastPasswordSet;
+                        break;
+                    case "accountexpires":
+                        user.AccountExpires = userPrincipal.AccountExpirationDate;
+                        break;
+                    case "memberof":
+                        user.MemberOf = memberOf.ToArray();
+                        break;
+                    case "department":
+                        user.Department = GetPropertyValue(userPrincipal, "department") ?? string.Empty;
+                        break;
+                    case "title":
+                        user.Title = GetPropertyValue(userPrincipal, "title") ?? string.Empty;
+                        break;
+                    case "office":
+                        user.Office = GetPropertyValue(userPrincipal, "physicalDeliveryOfficeName") ?? string.Empty;
+                        break;
+                    case "phone":
+                        user.Phone = GetPropertyValue(userPrincipal, "telephoneNumber") ?? string.Empty;
+                        break;
+                    case "mobile":
+                        user.Mobile = GetPropertyValue(userPrincipal, "mobile") ?? string.Empty;
+                        break;
+                    case "manager":
+                        user.Manager = GetPropertyValue(userPrincipal, "manager") ?? string.Empty;
+                        break;
+                }
+            }
+        }
+
+        return user;
     }
 
     private static ActiveDirectoryGroup MapToActiveDirectoryGroup(GroupPrincipal groupPrincipal)
