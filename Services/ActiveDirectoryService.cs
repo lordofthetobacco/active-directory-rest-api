@@ -536,6 +536,102 @@ public class ActiveDirectoryService : IActiveDirectoryService
         }
     }
 
+    public async Task<IEnumerable<ActiveDirectoryUser>> SearchUsersByUPNAsync(string upn, int maxResults = 10)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(upn))
+            {
+                _logger.LogWarning("Empty or whitespace UPN provided for search");
+                return Enumerable.Empty<ActiveDirectoryUser>();
+            }
+
+            using var context = CreatePrincipalContext();
+            var userPrincipal = new UserPrincipal(context);
+            
+            var searchTerms = upn.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var searchFilters = new List<string>();
+            
+            foreach (var term in searchTerms)
+            {
+                if (term.Length >= 2)
+                {
+                    searchFilters.Add($"(|(userPrincipalName=*{term}*)(mail=*{term}*)(samAccountName=*{term}*))");
+                }
+            }
+            
+            if (searchFilters.Count == 0)
+            {
+                _logger.LogWarning("No valid search terms found in '{UPN}'", upn);
+                return Enumerable.Empty<ActiveDirectoryUser>();
+            }
+            
+            var combinedFilter = $"(&(objectClass=user)(objectCategory=person){string.Join("", searchFilters)})";
+            _logger.LogInformation("Searching users by UPN with filter: {Filter}", combinedFilter);
+            
+            var searcher = new PrincipalSearcher(userPrincipal);
+            var directoryEntry = searcher.GetUnderlyingSearcher() as DirectorySearcher;
+            
+            if (directoryEntry != null)
+            {
+                directoryEntry.Filter = combinedFilter;
+                directoryEntry.PropertiesToLoad.AddRange(new[] { "samAccountName", "displayName", "givenName", "sn", "cn", "mail", "userPrincipalName", "enabled" });
+                directoryEntry.SizeLimit = maxResults;
+                directoryEntry.Sort = new SortOption("displayName", SortDirection.Ascending);
+                
+                var results = directoryEntry.FindAll();
+                var users = new List<ActiveDirectoryUser>();
+                
+                foreach (SearchResult result in results)
+                {
+                    try
+                    {
+                        var user = new ActiveDirectoryUser
+                        {
+                            SamAccountName = GetSearchResultPropertyValue(result, "samAccountName"),
+                            DisplayName = GetSearchResultPropertyValue(result, "displayName"),
+                            GivenName = GetSearchResultPropertyValue(result, "givenName"),
+                            Surname = GetSearchResultPropertyValue(result, "sn"),
+                            Email = GetSearchResultPropertyValue(result, "mail"),
+                            UserPrincipalName = GetSearchResultPropertyValue(result, "userPrincipalName"),
+                            Enabled = GetSearchResultPropertyValue(result, "userAccountControl") != "514" && GetSearchResultPropertyValue(result, "userAccountControl") != "66050"
+                        };
+                        
+                        if (!string.IsNullOrEmpty(user.DisplayName))
+                        {
+                            users.Add(user);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error processing search result for user");
+                    }
+                }
+                
+                _logger.LogInformation("Found {Count} users matching UPN '{UPN}'", users.Count, upn);
+                return await Task.FromResult(users);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to get DirectorySearcher, falling back to PrincipalSearcher");
+                var principalResults = searcher.FindAll().Cast<UserPrincipal>();
+                var users = principalResults
+                    .Where(u => !string.IsNullOrEmpty(u.DisplayName))
+                    .Select(MapToActiveDirectoryUser)
+                    .Take(maxResults)
+                    .ToList();
+                
+                _logger.LogInformation("Found {Count} users using fallback method", users.Count);
+                return await Task.FromResult(users);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error searching users by UPN '{UPN}'", upn);
+            return Enumerable.Empty<ActiveDirectoryUser>();
+        }
+    }
+
     public async Task<IEnumerable<string>> GetUserGroupsAsync(string username)
     {
         try
@@ -900,6 +996,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
             Scope = GetPropertyValue(groupPrincipal, "groupType") ?? string.Empty,
             Members = members.ToArray(),
             MemberOf = memberOf.ToArray(),
+            Manager = GetPropertyValue(groupPrincipal, "managedBy") ?? string.Empty,
             WhenCreated = groupPrincipal.Context.ConnectedServer != null ? 
                 DateTime.Parse(GetPropertyValue(groupPrincipal, "whenCreated") ?? DateTime.MinValue.ToString()) : null,
             WhenChanged = groupPrincipal.Context.ConnectedServer != null ? 

@@ -164,6 +164,21 @@ public class UsersController : ControllerBase
         var users = await _adService.SearchUsersByFullNameAsync(q, maxResults);
         return Ok(users);
     }
+
+    [HttpGet("search/upn")]
+    public async Task<ActionResult<IEnumerable<ActiveDirectoryUser>>> SearchUsersByUPN(
+        [FromQuery] string q, 
+        [FromQuery] int maxResults = 10)
+    {
+        if (string.IsNullOrWhiteSpace(q))
+            return BadRequest("Search query 'q' parameter is required");
+        
+        if (maxResults < 1 || maxResults > 100)
+            return BadRequest("maxResults must be between 1 and 100");
+        
+        var users = await _adService.SearchUsersByUPNAsync(q, maxResults);
+        return Ok(users);
+    }
 }
 
 public class AuthenticationRequest

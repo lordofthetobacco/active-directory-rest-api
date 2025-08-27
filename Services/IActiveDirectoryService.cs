@@ -18,6 +18,7 @@ public interface IActiveDirectoryService
     Task<IEnumerable<string>> GetUserGroupsAsync(string username);
     Task<Dictionary<string, object>> GetUserExtensionAttributesAsync(string username, string[]? attributes = null);
     Task<IEnumerable<ActiveDirectoryUser>> SearchUsersByFullNameAsync(string fullName, int maxResults = 10);
+    Task<IEnumerable<ActiveDirectoryUser>> SearchUsersByUPNAsync(string upn, int maxResults = 10);
     Task<bool> CreateUserAsync(ActiveDirectoryUser user, string password);
     Task<bool> UpdateUserAsync(ActiveDirectoryUser user);
     Task<bool> DeleteUserAsync(string samAccountName);
