@@ -1,11 +1,13 @@
 using ActiveDirectory_API.Models;
 using ActiveDirectory_API.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ActiveDirectory_API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize] // Require authentication for all endpoints
 public class GroupsController : ControllerBase
 {
     private readonly IActiveDirectoryService _adService;
@@ -42,6 +44,7 @@ public class GroupsController : ControllerBase
     }
 
     [HttpPost("{groupName}/members/{username}")]
+    [Authorize(Policy = "RequireAdminRole")] // Require admin role for group management
     public async Task<ActionResult<bool>> AddUserToGroup(string groupName, string username)
     {
         var success = await _adService.AddUserToGroupAsync(username, groupName);
@@ -52,6 +55,7 @@ public class GroupsController : ControllerBase
     }
 
     [HttpDelete("{groupName}/members/{username}")]
+    [Authorize(Policy = "RequireAdminRole")] // Require admin role for group management
     public async Task<ActionResult<bool>> RemoveUserFromGroup(string groupName, string username)
     {
         var success = await _adService.RemoveUserFromGroupAsync(username, groupName);

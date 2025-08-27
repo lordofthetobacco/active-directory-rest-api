@@ -1,11 +1,13 @@
 using ActiveDirectory_API.Models;
 using ActiveDirectory_API.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ActiveDirectory_API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize] // Require authentication for all endpoints
 public class UsersController : ControllerBase
 {
     private readonly IActiveDirectoryService _adService;
@@ -112,6 +114,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "RequireAdminRole")] // Require admin role for user creation
     public async Task<ActionResult<bool>> CreateUser([FromBody] CreateUserRequest request)
     {
         var success = await _adService.CreateUserAsync(request.User, request.Password);
@@ -122,6 +125,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("{samAccountName}")]
+    [Authorize(Policy = "RequireAdminRole")] // Require admin role for user updates
     public async Task<ActionResult<bool>> UpdateUser(string samAccountName, [FromBody] ActiveDirectoryUser user)
     {
         if (samAccountName != user.SamAccountName)
@@ -135,6 +139,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost("{samAccountName}/enable")]
+    [Authorize(Policy = "RequireAdminRole")] // Require admin role for user management
     public async Task<ActionResult<bool>> EnableUser(string samAccountName)
     {
         var success = await _adService.EnableUserAsync(samAccountName);
@@ -145,6 +150,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost("upn/{upn}/enable")]
+    [Authorize(Policy = "RequireAdminRole")] // Require admin role for user management
     public async Task<ActionResult<bool>> EnableUserByUPN(string upn)
     {
         var success = await _adService.EnableUserByUPNAsync(upn);
@@ -155,6 +161,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost("{samAccountName}/reset-password")]
+    [Authorize(Policy = "RequireAdminRole")] // Require admin role for password operations
     public async Task<ActionResult<bool>> ResetPassword(string samAccountName, [FromBody] ResetPasswordRequest request)
     {
         var success = await _adService.ResetPasswordAsync(samAccountName, request.NewPassword);
@@ -165,6 +172,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost("upn/{upn}/reset-password")]
+    [Authorize(Policy = "RequireAdminRole")] // Require admin role for password operations
     public async Task<ActionResult<bool>> ResetPasswordByUPN(string upn, [FromBody] ResetPasswordRequest request)
     {
         var success = await _adService.ResetPasswordByUPNAsync(upn, request.NewPassword);
@@ -175,6 +183,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost("{samAccountName}/unlock")]
+    [Authorize(Policy = "RequireAdminRole")] // Require admin role for user management
     public async Task<ActionResult<bool>> UnlockUser(string samAccountName)
     {
         var success = await _adService.UnlockUserAsync(samAccountName);
@@ -185,6 +194,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost("upn/{upn}/unlock")]
+    [Authorize(Policy = "RequireAdminRole")] // Require admin role for user management
     public async Task<ActionResult<bool>> UnlockUserByUPN(string upn)
     {
         var success = await _adService.UnlockUserByUPNAsync(upn);
@@ -195,6 +205,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost("{samAccountName}/disable")]
+    [Authorize(Policy = "RequireAdminRole")] // Require admin role for user management
     public async Task<ActionResult<bool>> DisableUser(string samAccountName)
     {
         var success = await _adService.DisableUserAsync(samAccountName);
@@ -205,6 +216,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost("upn/{upn}/disable")]
+    [Authorize(Policy = "RequireAdminRole")] // Require admin role for user management
     public async Task<ActionResult<bool>> DisableUserByUPN(string upn)
     {
         var success = await _adService.DisableUserByUPNAsync(upn);
@@ -215,6 +227,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpDelete("{samAccountName}")]
+    [Authorize(Policy = "RequireAdminRole")] // Require admin role for user deletion
     public async Task<ActionResult<bool>> DeleteUser(string samAccountName)
     {
         var success = await _adService.DeleteUserAsync(samAccountName);
@@ -225,6 +238,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpDelete("upn/{upn}")]
+    [Authorize(Policy = "RequireAdminRole")] // Require admin role for user deletion
     public async Task<ActionResult<bool>> DeleteUserByUPN(string upn)
     {
         var success = await _adService.DeleteUserByUPNAsync(upn);

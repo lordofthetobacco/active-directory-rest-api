@@ -1,40 +1,77 @@
-### Active Directory API Test Requests
+### Microsoft Entra ID Authentication Examples
 
-### Health Checks
-GET {{baseUrl}}/api/health
-GET {{baseUrl}}/api/health/ad
+# Get access token from Microsoft Entra ID
+# POST https://login.microsoftonline.com/{tenant-id}/oauth2/v2.0/token
+# Content-Type: application/x-www-form-urlencoded
+# 
+# client_id={client-id}&client_secret={client-secret}&scope=https://graph.microsoft.com/.default&grant_type=client_credentials
 
-### User Operations
-GET {{baseUrl}}/api/users/john.doe
-GET {{baseUrl}}/api/users/email/john.doe@company.com
-GET {{baseUrl}}/api/users/dn/CN=John Doe,OU=Users,DC=company,DC=com
+### Health Check (No Authentication Required)
+GET https://localhost:7001/api/health
+Accept: application/json
 
-### User Search
-POST {{baseUrl}}/api/users/search
+### Active Directory Health Check (No Authentication Required)
+GET https://localhost:7001/api/health/ad
+Accept: application/json
+
+### Authentication Endpoints
+
+# Get current user information (Requires Authentication)
+GET https://localhost:7001/api/auth/me
+Authorization: Bearer {{access_token}}
+Accept: application/json
+
+# Get current user roles (Requires Authentication)
+GET https://localhost:7001/api/auth/roles
+Authorization: Bearer {{access_token}}
+Accept: application/json
+
+# Logout current user (Requires Authentication)
+POST https://localhost:7001/api/auth/logout
+Authorization: Bearer {{access_token}}
+Accept: application/json
+
+### User Management (Read Operations - Requires Authentication)
+
+# Get user by SAM account name
+GET https://localhost:7001/api/users/john.doe
+Authorization: Bearer {{access_token}}
+Accept: application/json
+
+# Get user by email
+GET https://localhost:7001/api/users/email/john.doe@company.com
+Authorization: Bearer {{access_token}}
+Accept: application/json
+
+# Search users
+POST https://localhost:7001/api/users/search
+Authorization: Bearer {{access_token}}
 Content-Type: application/json
+Accept: application/json
 
 {
   "searchTerm": "john",
-  "maxResults": 50,
+  "maxResults": 10,
   "attributes": ["displayName", "email", "department"]
 }
 
-### User Authentication
-POST {{baseUrl}}/api/users/authenticate
+# Get user groups
+GET https://localhost:7001/api/users/john.doe/groups
+Authorization: Bearer {{access_token}}
+Accept: application/json
+
+# Check if user is in specific group
+GET https://localhost:7001/api/users/john.doe/groups/Administrators/ismember
+Authorization: Bearer {{access_token}}
+Accept: application/json
+
+### User Management (Admin Operations - Requires Admin Role)
+
+# Create new user
+POST https://localhost:7001/api/users
+Authorization: Bearer {{access_token}}
 Content-Type: application/json
-
-{
-  "username": "john.doe",
-  "password": "password123"
-}
-
-### User Groups
-GET {{baseUrl}}/api/users/john.doe/groups
-GET {{baseUrl}}/api/users/john.doe/groups/Administrators/ismember
-
-### Create User
-POST {{baseUrl}}/api/users
-Content-Type: application/json
+Accept: application/json
 
 {
   "user": {
@@ -48,9 +85,11 @@ Content-Type: application/json
   "password": "SecurePassword123!"
 }
 
-### Update User
-PUT {{baseUrl}}/api/users/jane.smith
+# Update user
+PUT https://localhost:7001/api/users/jane.smith
+Authorization: Bearer {{access_token}}
 Content-Type: application/json
+Accept: application/json
 
 {
   "samAccountName": "jane.smith",
@@ -59,35 +98,79 @@ Content-Type: application/json
   "surname": "Smith",
   "email": "jane.smith@company.com",
   "enabled": true,
-  "department": "IT",
-  "title": "Software Developer"
+  "department": "IT"
 }
 
-### User Management
-POST {{baseUrl}}/api/users/jane.smith/enable
-POST {{baseUrl}}/api/users/jane.smith/disable
-POST {{baseUrl}}/api/users/jane.smith/reset-password
+# Enable user
+POST https://localhost:7001/api/users/jane.smith/enable
+Authorization: Bearer {{access_token}}
+Accept: application/json
+
+# Disable user
+POST https://localhost:7001/api/users/jane.smith/disable
+Authorization: Bearer {{access_token}}
+Accept: application/json
+
+# Reset user password
+POST https://localhost:7001/api/users/jane.smith/reset-password
+Authorization: Bearer {{access_token}}
 Content-Type: application/json
+Accept: application/json
 
 {
   "newPassword": "NewSecurePassword123!"
 }
 
-POST {{baseUrl}}/api/users/jane.smith/unlock
-DELETE {{baseUrl}}/api/users/jane.smith
+# Unlock user
+POST https://localhost:7001/api/users/jane.smith/unlock
+Authorization: Bearer {{access_token}}
+Accept: application/json
 
-### Group Operations
-GET {{baseUrl}}/api/groups/Administrators
-GET {{baseUrl}}/api/groups/Users
+# Delete user
+DELETE https://localhost:7001/api/users/jane.smith
+Authorization: Bearer {{access_token}}
+Accept: application/json
 
-### Group Search
-POST {{baseUrl}}/api/groups/search
+### Group Management (Read Operations - Requires Authentication)
+
+# Get group information
+GET https://localhost:7001/api/groups/Administrators
+Authorization: Bearer {{access_token}}
+Accept: application/json
+
+# Search groups
+POST https://localhost:7001/api/groups/search
+Authorization: Bearer {{access_token}}
 Content-Type: application/json
+Accept: application/json
 
 {
   "searchTerm": "admin",
-  "maxResults": 20
+  "maxResults": 10
 }
 
+# Check if user is in group
+GET https://localhost:7001/api/groups/Administrators/members/john.doe/check
+Authorization: Bearer {{access_token}}
+Accept: application/json
+
+# Search groups by name
+GET https://localhost:7001/api/groups/search/name?q=admin&maxResults=10
+Authorization: Bearer {{access_token}}
+Accept: application/json
+
+### Group Management (Admin Operations - Requires Admin Role)
+
+# Add user to group
+POST https://localhost:7001/api/groups/Administrators/members/jane.smith
+Authorization: Bearer {{access_token}}
+Accept: application/json
+
+# Remove user from group
+DELETE https://localhost:7001/api/groups/Administrators/members/jane.smith
+Authorization: Bearer {{access_token}}
+Accept: application/json
+
 ### Variables
-@baseUrl = https://localhost:7001
+# Set your access token here after obtaining it from Microsoft Entra ID
+@access_token = your_access_token_here

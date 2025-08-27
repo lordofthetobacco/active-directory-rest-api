@@ -1,10 +1,12 @@
 using ActiveDirectory_API.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ActiveDirectory_API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[AllowAnonymous] // Allow unauthenticated access for health checks
 public class HealthController : ControllerBase
 {
     private readonly IActiveDirectoryService _adService;

@@ -1,210 +1,221 @@
-# Active Directory REST API
+# Active Directory REST API with Microsoft Entra ID Authentication
 
-A RESTful API for interacting with Microsoft Active Directory, built with ASP.NET Core 8.0.
+A secure REST API for managing Active Directory users and groups, protected with Microsoft Entra ID (formerly Azure AD) authentication.
 
 ## Features
 
-- **User Management**: Create, read, update, delete, enable/disable users
-- **Group Management**: Search and retrieve group information
-- **Authentication**: Validate user credentials
-- **Search**: Advanced search capabilities for users and groups
-- **Password Management**: Reset passwords and unlock accounts
-- **Health Monitoring**: API health checks and AD connection status
+- **Microsoft Entra ID Authentication**: Secure API access using JWT tokens
+- **Role-Based Access Control**: Different permission levels for users and administrators
+- **Active Directory Management**: Full CRUD operations for users and groups
+- **Health Monitoring**: API health checks and Active Directory connectivity status
+- **Swagger Documentation**: Interactive API documentation with authentication support
 
 ## Prerequisites
 
 - .NET 8.0 SDK
-- Access to an Active Directory domain
-- Service account with appropriate permissions for AD operations
+- Windows operating system (for Active Directory services)
+- Microsoft Entra ID tenant
+- Registered application in Microsoft Entra ID
+
+## Microsoft Entra ID Setup
+
+### 1. Register Your Application
+
+1. Go to [Azure Portal](https://portal.azure.com)
+2. Navigate to **Microsoft Entra ID** > **App registrations**
+3. Click **New registration**
+4. Enter application details:
+   - **Name**: Active Directory API
+   - **Supported account types**: Accounts in this organizational directory only
+   - **Redirect URI**: Web - `https://localhost:7001/signin-oidc` (for development)
+5. Click **Register**
+
+### 2. Configure Authentication
+
+1. In your app registration, go to **Authentication**
+2. Add platform configuration:
+   - **Platform type**: Web
+   - **Redirect URIs**: 
+     - `https://localhost:7001/signin-oidc`
+     - `https://localhost:7001/swagger/oauth2-redirect.html`
+3. Under **Implicit grant and hybrid flows**, check:
+   - **Access tokens**
+   - **ID tokens**
+4. Click **Save**
+
+### 3. Create Client Secret
+
+1. Go to **Certificates & secrets**
+2. Click **New client secret**
+3. Add description and select expiration
+4. **Copy the secret value** (you won't see it again)
+
+### 4. Configure API Permissions
+
+1. Go to **API permissions**
+2. Click **Add a permission**
+3. Select **Microsoft Graph**
+4. Choose **Application permissions**:
+   - `User.ReadWrite.All`
+   - `Group.ReadWrite.All`
+   - `Directory.ReadWrite.All`
+5. Click **Grant admin consent**
+
+### 5. Get Application Details
+
+Note down these values from your app registration:
+- **Application (client) ID**
+- **Directory (tenant) ID**
+- **Client secret** (from step 3)
 
 ## Configuration
 
-Update `appsettings.json` with your Active Directory settings:
+### 1. Update appsettings.Development.json
 
 ```json
 {
-  "ActiveDirectory": {
-    "Server": "your-domain-controller.com",
-    "Port": 389,
-    "UseSSL": false,
-    "BindDN": "CN=ServiceAccount,OU=ServiceAccounts,DC=yourdomain,DC=com",
-    "BindPassword": "your-service-account-password",
-    "SearchBase": "DC=yourdomain,DC=com",
-    "Timeout": 30,
-    "UseIntegratedSecurity": false
+  "AzureAd": {
+    "Instance": "https://login.microsoftonline.com/",
+    "Domain": "yourdomain.onmicrosoft.com",
+    "TenantId": "your-tenant-id",
+    "ClientId": "your-client-id",
+    "ClientSecret": "your-client-secret",
+    "CallbackPath": "/signin-oidc",
+    "SignedOutCallbackPath": "/signout-oidc"
+  },
+  "GraphAPI": {
+    "BaseUrl": "https://graph.microsoft.com/v1.0",
+    "Scopes": "https://graph.microsoft.com/.default"
   }
 }
 ```
 
-### Configuration Options
+### 2. Production Configuration
 
-- **Server**: Domain controller hostname or IP address
-- **Port**: LDAP port (389 for non-SSL, 636 for SSL)
-- **UseSSL**: Enable SSL/TLS encryption
-- **BindDN**: Distinguished name of the service account
-- **BindPassword**: Service account password
-- **SearchBase**: Base DN for searches
-- **Timeout**: Connection timeout in seconds
-- **UseIntegratedSecurity**: Use Windows authentication (requires domain-joined machine)
+For production, use environment variables or Azure Key Vault:
+
+```bash
+# Environment variables
+AZUREAD__TENANTID=your-tenant-id
+AZUREAD__CLIENTID=your-client-id
+AZUREAD__CLIENTSECRET=your-client-secret
+```
 
 ## API Endpoints
 
-### Users
+### Authentication Endpoints
 
-#### GET `/api/users/{samAccountName}`
-Retrieve user by SAM account name.
+- `GET /api/auth/me` - Get current user information
+- `GET /api/auth/roles` - Get current user roles
+- `POST /api/auth/logout` - Logout current user
 
-#### GET `/api/users/email/{email}`
-Retrieve user by email address.
+### User Management (Requires Authentication)
 
-#### GET `/api/users/dn/{distinguishedName}`
-Retrieve user by distinguished name.
+- `GET /api/users/{samAccountName}` - Get user by SAM account name
+- `GET /api/users/email/{email}` - Get user by email
+- `POST /api/users/search` - Search users
+- `GET /api/users/{username}/groups` - Get user groups
 
-#### POST `/api/users/search`
-Search users with filters and pagination.
+### User Management (Requires Admin Role)
 
-**Request Body:**
-```json
-{
-  "searchTerm": "john",
-  "maxResults": 50,
-  "attributes": ["displayName", "email", "department"]
-}
-```
+- `POST /api/users` - Create new user
+- `PUT /api/users/{samAccountName}` - Update user
+- `POST /api/users/{samAccountName}/enable` - Enable user
+- `POST /api/users/{samAccountName}/disable` - Disable user
+- `POST /api/users/{samAccountName}/reset-password` - Reset user password
+- `DELETE /api/users/{samAccountName}` - Delete user
 
-#### POST `/api/users/authenticate`
-Authenticate user credentials.
+### Group Management (Requires Authentication)
 
-**Request Body:**
-```json
-{
-  "username": "john.doe",
-  "password": "password123"
-}
-```
+- `GET /api/groups/{groupName}` - Get group information
+- `POST /api/groups/search` - Search groups
+- `GET /api/groups/{groupName}/members/{username}/check` - Check if user is in group
 
-#### GET `/api/users/{username}/groups`
-Get all groups for a user.
+### Group Management (Requires Admin Role)
 
-#### GET `/api/users/{username}/groups/{groupName}/ismember`
-Check if user is member of specific group.
+- `POST /api/groups/{groupName}/members/{username}` - Add user to group
+- `DELETE /api/groups/{groupName}/members/{username}` - Remove user from group
 
-#### POST `/api/users`
-Create a new user.
+### Health Check (No Authentication Required)
 
-**Request Body:**
-```json
-{
-  "user": {
-    "samAccountName": "john.doe",
-    "displayName": "John Doe",
-    "givenName": "John",
-    "surname": "Doe",
-    "email": "john.doe@company.com",
-    "enabled": true
-  },
-  "password": "SecurePassword123!"
-}
-```
+- `GET /api/health` - API health status
+- `GET /api/health/ad` - Active Directory connectivity status
 
-#### PUT `/api/users/{samAccountName}`
-Update user information.
+## Authentication Flow
 
-#### DELETE `/api/users/{samAccountName}`
-Delete a user.
-
-#### POST `/api/users/{samAccountName}/enable`
-Enable a user account.
-
-#### POST `/api/users/{samAccountName}/disable`
-Disable a user account.
-
-#### POST `/api/users/{samAccountName}/reset-password`
-Reset user password.
-
-**Request Body:**
-```json
-{
-  "newPassword": "NewSecurePassword123!"
-}
-```
-
-#### POST `/api/users/{samAccountName}/unlock`
-Unlock a locked user account.
-
-### Groups
-
-#### GET `/api/groups/{groupName}`
-Retrieve group information.
-
-#### POST `/api/groups/search`
-Search groups with filters.
-
-### Health
-
-#### GET `/api/health`
-Overall API health status.
-
-#### GET `/api/health/ad`
-Active Directory connection health.
-
-## Running the API
-
-1. **Restore packages:**
-   ```bash
-   dotnet restore
+1. **Client obtains access token** from Microsoft Entra ID
+2. **Include token in requests** using Authorization header:
    ```
-
-2. **Build the project:**
-   ```bash
-   dotnet build
+   Authorization: Bearer <access_token>
    ```
+3. **API validates token** and extracts user claims
+4. **Authorization policies** check user roles for protected endpoints
 
-3. **Run the API:**
-   ```bash
-   dotnet run
-   ```
+## Role-Based Access Control
 
-4. **Access Swagger UI:**
-   Navigate to `https://localhost:5001/swagger` for interactive API documentation.
+- **Authenticated Users**: Can read user/group information and perform searches
+- **Admin Users**: Can perform all operations including user/group creation, modification, and deletion
+- **Health Endpoints**: Accessible without authentication for monitoring purposes
+
+## Development
+
+### Running the API
+
+```bash
+dotnet restore
+dotnet run
+```
+
+### Testing with Swagger
+
+1. Navigate to `https://localhost:7001/swagger`
+2. Click **Authorize** button
+3. Enter your Bearer token: `Bearer <your_access_token>`
+4. Test API endpoints
+
+### Testing with HTTP Client
+
+```http
+GET https://localhost:7001/api/users/john.doe
+Authorization: Bearer <your_access_token>
+```
 
 ## Security Considerations
 
-- Store service account credentials securely
-- Use SSL/TLS in production environments
-- Implement proper authentication and authorization for API access
-- Consider using Windows Authentication for domain-joined machines
-- Regularly rotate service account passwords
-- Limit service account permissions to minimum required
+- **Client secrets** should never be committed to source control
+- **Use HTTPS** in production environments
+- **Implement proper token validation** and expiration handling
+- **Consider implementing rate limiting** for API endpoints
+- **Audit logging** for sensitive operations
 
-## Error Handling
+## Troubleshooting
 
-The API returns appropriate HTTP status codes:
-- `200 OK`: Successful operation
-- `201 Created`: Resource created successfully
-- `400 Bad Request`: Invalid request data
-- `404 Not Found`: Resource not found
-- `500 Internal Server Error`: Server error
+### Common Issues
 
-## Logging
+1. **Authentication failed**: Check tenant ID, client ID, and client secret
+2. **Insufficient permissions**: Ensure proper API permissions are granted
+3. **Token expired**: Implement token refresh logic in your client application
+4. **CORS issues**: Verify CORS configuration matches your client origin
 
-All operations are logged with appropriate log levels. Check application logs for detailed error information and debugging.
+### Debug Information
 
-## Dependencies
+Enable detailed logging in `appsettings.Development.json`:
 
-- **System.DirectoryServices.Protocols**: Core LDAP functionality
-- **System.DirectoryServices.AccountManagement**: High-level AD operations
-- **Microsoft.AspNetCore.OpenApi**: Swagger/OpenAPI support
-- **Swashbuckle.AspNetCore**: API documentation
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.Identity.Web": "Debug"
+    }
+  }
+}
+```
 
-## Contributing
+## Support
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License.
+For issues related to:
+- **Microsoft Entra ID**: Check [Microsoft Entra ID documentation](https://docs.microsoft.com/en-us/azure/active-directory/)
+- **API functionality**: Review the code and check logs
+- **Authentication**: Verify configuration and permissions
