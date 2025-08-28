@@ -22,6 +22,7 @@ secrets.json
 appsettings.Local.json
 appsettings.*.local.json
 appsettings.json
+appsettings.Development.json
 # Rider
 .idea/
 # JetBrains

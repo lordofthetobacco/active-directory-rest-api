@@ -9,11 +9,13 @@ public class ActiveDirectoryService : IActiveDirectoryService
 {
     private readonly ActiveDirectoryConfiguration _config;
     private readonly ILogger<ActiveDirectoryService> _logger;
+    private readonly IAuditLoggingService _auditLogger;
 
-    public ActiveDirectoryService(ActiveDirectoryConfiguration config, ILogger<ActiveDirectoryService> logger)
+    public ActiveDirectoryService(ActiveDirectoryConfiguration config, ILogger<ActiveDirectoryService> logger, IAuditLoggingService auditLogger)
     {
         _config = config;
         _logger = logger;
+        _auditLogger = auditLogger;
     }
 
     public async Task<ActiveDirectoryUser?> GetUserAsync(string samAccountName)
@@ -23,17 +25,29 @@ public class ActiveDirectoryService : IActiveDirectoryService
 
     public async Task<ActiveDirectoryUser?> GetUserAsync(string samAccountName, string[]? properties)
     {
+        var startTime = DateTime.UtcNow;
         try
         {
             using var context = CreatePrincipalContext();
             var userPrincipal = UserPrincipal.FindByIdentity(context, IdentityType.SamAccountName, samAccountName);
             
-            if (userPrincipal == null) return null;
+            if (userPrincipal == null)
+            {
+                var duration = DateTime.UtcNow - startTime;
+                _auditLogger.LogActiveDirectoryOperation("GetUser", samAccountName, false, duration, "User not found");
+                return null;
+            }
             
-            return await Task.FromResult(MapToActiveDirectoryUser(userPrincipal, properties));
+            var result = await Task.FromResult(MapToActiveDirectoryUser(userPrincipal, properties));
+            var successDuration = DateTime.UtcNow - startTime;
+            _auditLogger.LogActiveDirectoryOperation("GetUser", samAccountName, true, successDuration);
+            
+            return result;
         }
         catch (Exception ex)
         {
+            var duration = DateTime.UtcNow - startTime;
+            _auditLogger.LogActiveDirectoryOperation("GetUser", samAccountName, false, duration, ex.Message);
             _logger.LogError(ex, "Error getting user {SamAccountName}", samAccountName);
             return null;
         }

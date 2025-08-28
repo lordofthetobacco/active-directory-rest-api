@@ -1,77 +1,60 @@
-### Microsoft Entra ID Authentication Examples
+### Active Directory REST API - Machine-to-Machine Authentication Examples
 
-# Get access token from Microsoft Entra ID
-# POST https://login.microsoftonline.com/{tenant-id}/oauth2/v2.0/token
+### Step 1: Get Access Token (Client Credentials Flow)
+# POST https://login.microsoftonline.com/5cbf4b45-97e8-498c-b584-ef6b12a29fe1/oauth2/v2.0/token
 # Content-Type: application/x-www-form-urlencoded
 # 
-# client_id={client-id}&client_secret={client-secret}&scope=https://graph.microsoft.com/.default&grant_type=client_credentials
+# grant_type=client_credentials&client_id=d5159527-16ba-4ae8-aa65-e9636855ad6c&client_secret=YOUR_CLIENT_SECRET&scope=https://graph.microsoft.com/.default
 
-### Health Check (No Authentication Required)
+### Step 2: Health Check (No Authentication Required)
 GET https://localhost:7001/api/health
-Accept: application/json
 
-### Active Directory Health Check (No Authentication Required)
-GET https://localhost:7001/api/health/ad
-Accept: application/json
-
-### Authentication Endpoints
-
-# Get current user information (Requires Authentication)
-GET https://localhost:7001/api/auth/me
-Authorization: Bearer {{access_token}}
-Accept: application/json
-
-# Get current user roles (Requires Authentication)
-GET https://localhost:7001/api/auth/roles
-Authorization: Bearer {{access_token}}
-Accept: application/json
-
-# Logout current user (Requires Authentication)
-POST https://localhost:7001/api/auth/logout
-Authorization: Bearer {{access_token}}
-Accept: application/json
-
-### User Management (Read Operations - Requires Authentication)
-
-# Get user by SAM account name
+### Step 3: Get User by SAM Account Name (Requires Authentication)
 GET https://localhost:7001/api/users/john.doe
-Authorization: Bearer {{access_token}}
-Accept: application/json
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
 
-# Get user by email
-GET https://localhost:7001/api/users/email/john.doe@company.com
-Authorization: Bearer {{access_token}}
-Accept: application/json
-
-# Search users
+### Step 4: Search Users (Requires Authentication)
 POST https://localhost:7001/api/users/search
-Authorization: Bearer {{access_token}}
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
 Content-Type: application/json
-Accept: application/json
 
 {
   "searchTerm": "john",
   "maxResults": 10,
-  "attributes": ["displayName", "email", "department"]
+  "sortBy": "displayName",
+  "sortAscending": true
 }
 
-# Get user groups
+### Step 5: Get User by Email (Requires Authentication)
+GET https://localhost:7001/api/users/email/john.doe@company.com
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### Step 6: Get User Groups (Requires Authentication)
 GET https://localhost:7001/api/users/john.doe/groups
-Authorization: Bearer {{access_token}}
-Accept: application/json
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
 
-# Check if user is in specific group
-GET https://localhost:7001/api/users/john.doe/groups/Administrators/ismember
-Authorization: Bearer {{access_token}}
-Accept: application/json
+### Step 7: Get Group Information (Requires Authentication)
+GET https://localhost:7001/api/groups/Administrators
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
 
-### User Management (Admin Operations - Requires Admin Role)
-
-# Create new user
-POST https://localhost:7001/api/users
-Authorization: Bearer {{access_token}}
+### Step 8: Search Groups (Requires Authentication)
+POST https://localhost:7001/api/groups/search
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
 Content-Type: application/json
-Accept: application/json
+
+{
+  "searchTerm": "admin",
+  "maxResults": 20
+}
+
+### Step 9: Check User Group Membership (Requires Authentication)
+GET https://localhost:7001/api/groups/Administrators/members/john.doe/check
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### Step 10: Create User (Requires Admin Permissions)
+POST https://localhost:7001/api/users
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+Content-Type: application/json
 
 {
   "user": {
@@ -80,16 +63,17 @@ Accept: application/json
     "givenName": "Jane",
     "surname": "Smith",
     "email": "jane.smith@company.com",
-    "enabled": true
+    "userPrincipalName": "jane.smith@company.com",
+    "department": "IT",
+    "title": "Software Developer"
   },
   "password": "SecurePassword123!"
 }
 
-# Update user
+### Step 11: Update User (Requires Admin Permissions)
 PUT https://localhost:7001/api/users/jane.smith
-Authorization: Bearer {{access_token}}
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
 Content-Type: application/json
-Accept: application/json
 
 {
   "samAccountName": "jane.smith",
@@ -97,80 +81,67 @@ Accept: application/json
   "givenName": "Jane",
   "surname": "Smith",
   "email": "jane.smith@company.com",
-  "enabled": true,
-  "department": "IT"
+  "userPrincipalName": "jane.smith@company.com",
+  "department": "IT",
+  "title": "Senior Software Developer",
+  "office": "Building A, Floor 2"
 }
 
-# Enable user
+### Step 12: Enable User (Requires Admin Permissions)
 POST https://localhost:7001/api/users/jane.smith/enable
-Authorization: Bearer {{access_token}}
-Accept: application/json
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
 
-# Disable user
-POST https://localhost:7001/api/users/jane.smith/disable
-Authorization: Bearer {{access_token}}
-Accept: application/json
-
-# Reset user password
+### Step 13: Reset User Password (Requires Admin Permissions)
 POST https://localhost:7001/api/users/jane.smith/reset-password
-Authorization: Bearer {{access_token}}
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
 Content-Type: application/json
-Accept: application/json
 
 {
-  "newPassword": "NewSecurePassword123!"
+  "newPassword": "NewSecurePassword456!"
 }
 
-# Unlock user
-POST https://localhost:7001/api/users/jane.smith/unlock
-Authorization: Bearer {{access_token}}
-Accept: application/json
+### Step 14: Add User to Group (Requires Admin Permissions)
+POST https://localhost:7001/api/groups/Developers/members/jane.smith
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
 
-# Delete user
+### Step 15: Remove User from Group (Requires Admin Permissions)
+DELETE https://localhost:7001/api/groups/Developers/members/jane.smith
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### Step 16: Delete User (Requires Admin Permissions)
 DELETE https://localhost:7001/api/users/jane.smith
-Authorization: Bearer {{access_token}}
-Accept: application/json
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
 
-### Group Management (Read Operations - Requires Authentication)
+### Step 17: Get User Extension Attributes (Requires Authentication)
+GET https://localhost:7001/api/users/john.doe/extension-attributes?attributes=extensionAttribute1,extensionAttribute2
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
 
-# Get group information
-GET https://localhost:7001/api/groups/Administrators
-Authorization: Bearer {{access_token}}
-Accept: application/json
+### Step 18: Search Users by Full Name (Requires Authentication)
+GET https://localhost:7001/api/users/search/fullname?q=John&maxResults=5
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
 
-# Search groups
-POST https://localhost:7001/api/groups/search
-Authorization: Bearer {{access_token}}
-Content-Type: application/json
-Accept: application/json
+### Step 19: Search Users by UPN (Requires Authentication)
+GET https://localhost:7001/api/users/search/upn?q=john.doe&maxResults=5
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
 
-{
-  "searchTerm": "admin",
-  "maxResults": 10
-}
-
-# Check if user is in group
-GET https://localhost:7001/api/groups/Administrators/members/john.doe/check
-Authorization: Bearer {{access_token}}
-Accept: application/json
-
-# Search groups by name
+### Step 20: Search Groups by Name (Requires Authentication)
 GET https://localhost:7001/api/groups/search/name?q=admin&maxResults=10
-Authorization: Bearer {{access_token}}
-Accept: application/json
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
 
-### Group Management (Admin Operations - Requires Admin Role)
+### Authentication Notes:
+# 1. Replace YOUR_ACCESS_TOKEN_HERE with the actual JWT token obtained from Step 1
+# 2. Replace YOUR_CLIENT_SECRET with your actual client secret
+# 3. Tokens expire after 1 hour (3600 seconds)
+# 4. Admin operations require Directory.ReadWrite.All, User.ReadWrite.All, or Group.ReadWrite.All permissions
+# 5. Read operations require Directory.Read.All, User.Read.All, or Group.Read.All permissions
 
-# Add user to group
-POST https://localhost:7001/api/groups/Administrators/members/jane.smith
-Authorization: Bearer {{access_token}}
-Accept: application/json
+### Error Handling:
+# - 401 Unauthorized: Invalid or expired token
+# - 403 Forbidden: Insufficient permissions for the operation
+# - 404 Not Found: Resource not found
+# - 500 Internal Server Error: Server-side error
 
-# Remove user from group
-DELETE https://localhost:7001/api/groups/Administrators/members/jane.smith
-Authorization: Bearer {{access_token}}
-Accept: application/json
-
-### Variables
-# Set your access token here after obtaining it from Microsoft Entra ID
-@access_token = your_access_token_here
+### Rate Limiting:
+# Consider implementing rate limiting in your client application
+# Microsoft Entra ID has rate limits for token requests
+# Active Directory operations may have performance implications

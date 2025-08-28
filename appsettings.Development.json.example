@@ -1,0 +1,22 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "AzureAd": {
+    "Instance": "https://login.microsoftonline.com/",
+    "Domain": "yourdomain.onmicrosoft.com",
+    "TenantId": "your-tenant-id",
+    "ClientId": "your-client-id",
+    "ClientSecret": "your-client-secret",
+    "CallbackPath": "/signin-oidc",
+    "SignedOutCallbackPath": "/signout-oidc"
+  },
+  "GraphAPI": {
+    "BaseUrl": "https://graph.microsoft.com/v1.0",
+    "Scopes": "https://graph.microsoft.com/.default"
+  }
+}

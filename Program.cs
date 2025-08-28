@@ -2,19 +2,64 @@ using ActiveDirectory_API.Models;
 using ActiveDirectory_API.Services;
 using System.Runtime.Versioning;
 using System.Runtime.InteropServices;
-using Microsoft.Identity.Web;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Microsoft.IdentityModel.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-builder.Services.AddMicrosoftIdentityWebApiAuthentication(builder.Configuration)
-    .EnableTokenAcquisitionToCallDownstreamApi()
-    .AddMicrosoftGraph(builder.Configuration.GetSection("GraphAPI"));
+// Add HTTP context accessor for correlation ID tracking
+builder.Services.AddHttpContextAccessor();
+
+// Register audit logging service
+builder.Services.AddScoped<IAuditLoggingService, AuditLoggingService>();
+
+// Configure JWT Bearer Authentication for Machine-to-Machine communication
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = builder.Configuration["JwtBearer:Authority"];
+        options.Audience = builder.Configuration["JwtBearer:Audience"];
+        options.RequireHttpsMetadata = true;
+        options.SaveToken = true;
+        
+        // Configure token validation parameters
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = builder.Configuration.GetValue<bool>("JwtBearer:ValidateIssuer"),
+            ValidateAudience = builder.Configuration.GetValue<bool>("JwtBearer:ValidateAudience"),
+            ValidateLifetime = builder.Configuration.GetValue<bool>("JwtBearer:ValidateLifetime"),
+            ValidateIssuerSigningKey = builder.Configuration.GetValue<bool>("JwtBearer:ValidateIssuerSigningKey"),
+            ClockSkew = TimeSpan.Zero
+        };
+
+        // Handle authentication events for logging
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                // Note: We can't access audit logger here during configuration
+                // Authentication events will be logged by the middleware
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                // Note: We can't access audit logger here during configuration
+                // Authentication events will be logged by the middleware
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+// Enable detailed logging for JWT validation in development
+if (builder.Environment.IsDevelopment())
+{
+    IdentityModelEventSource.ShowPII = true;
+}
 
 builder.Services.AddSwaggerGen(c =>
 {
@@ -79,8 +124,13 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("RequireAuthenticatedUser", policy =>
         policy.RequireAuthenticatedUser());
     
-    options.AddPolicy("RequireAdminRole", policy =>
-        policy.RequireRole("Admin", "Global Administrator"));
+    // Policy for admin operations - requires specific application permissions
+    options.AddPolicy("RequireAdminPermissions", policy =>
+        policy.RequireClaim("roles", "Directory.ReadWrite.All", "User.ReadWrite.All", "Group.ReadWrite.All"));
+    
+    // Policy for read-only operations
+    options.AddPolicy("RequireReadPermissions", policy =>
+        policy.RequireClaim("roles", "Directory.Read.All", "User.Read.All", "Group.Read.All", "Directory.ReadWrite.All", "User.ReadWrite.All", "Group.ReadWrite.All"));
 });
 
 var app = builder.Build();
@@ -118,6 +168,16 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
+
+// Add correlation ID middleware
+app.Use(async (context, next) =>
+{
+    var correlationId = context.Request.Headers["X-Correlation-ID"].FirstOrDefault() ?? Guid.NewGuid().ToString("N");
+    context.Items["CorrelationId"] = correlationId;
+    context.Response.Headers["X-Correlation-ID"] = correlationId;
+    
+    await next();
+});
 
 // Add Authentication and Authorization middleware
 app.UseAuthentication();
