@@ -1,11 +1,13 @@
 using ActiveDirectory_API.Models;
 using ActiveDirectory_API.Services;
+using ActiveDirectory_API.Data;
 using System.Runtime.Versioning;
 using System.Runtime.InteropServices;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Microsoft.IdentityModel.Logging;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +16,13 @@ builder.Services.AddEndpointsApiExplorer();
 
 // Add HTTP context accessor for correlation ID tracking
 builder.Services.AddHttpContextAccessor();
+
+// Configure Entity Framework with PostgreSQL
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Register database logging service
+builder.Services.AddScoped<IDatabaseLoggingService, PostgresLoggingService>();
 
 // Register audit logging service
 builder.Services.AddScoped<IAuditLoggingService, AuditLoggingService>();

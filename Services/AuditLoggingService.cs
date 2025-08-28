@@ -7,11 +7,13 @@ public class AuditLoggingService : IAuditLoggingService
 {
     private readonly ILogger<AuditLoggingService> _logger;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IDatabaseLoggingService _databaseLogger;
 
-    public AuditLoggingService(ILogger<AuditLoggingService> logger, IHttpContextAccessor httpContextAccessor)
+    public AuditLoggingService(ILogger<AuditLoggingService> logger, IHttpContextAccessor httpContextAccessor, IDatabaseLoggingService databaseLogger)
     {
         _logger = logger;
         _httpContextAccessor = httpContextAccessor;
+        _databaseLogger = databaseLogger;
     }
 
     public void LogApiRequest(string action, string resource, object? requestData, ClaimsPrincipal? user, string? correlationId = null)
@@ -20,6 +22,20 @@ public class AuditLoggingService : IAuditLoggingService
         var userInfo = ExtractUserInfo(user);
         var requestInfo = SerializeRequestData(requestData);
 
+        // Log to database (async, fire-and-forget)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _databaseLogger.LogApiRequestAsync(action, resource, requestData, userInfo, correlationIdValue);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to log API request to database");
+            }
+        });
+
+        // Fallback to file logging
         _logger.LogInformation(
             "API Request: {Action} on {Resource} | User: {UserInfo} | CorrelationId: {CorrelationId} | Request: {RequestInfo}",
             action, resource, userInfo, correlationIdValue, requestInfo);
@@ -31,6 +47,19 @@ public class AuditLoggingService : IAuditLoggingService
         var userInfo = ExtractUserInfo(user);
         var responseInfo = SerializeResponseData(responseData, statusCode);
         var durationMs = duration.TotalMilliseconds;
+
+        // Log to database (async, fire-and-forget)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _databaseLogger.LogApiResponseAsync(action, resource, responseData, statusCode, duration, userInfo, correlationIdValue);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to log API response to database");
+            }
+        });
 
         if (statusCode >= 200 && statusCode < 300)
         {
@@ -52,6 +81,19 @@ public class AuditLoggingService : IAuditLoggingService
         var userInfo = ExtractUserInfo(user);
         var requestInfo = SerializeRequestData(requestData);
 
+        // Log to database (async, fire-and-forget)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _databaseLogger.LogApiErrorAsync(action, resource, exception, requestData, userInfo, correlationIdValue);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to log API error to database");
+            }
+        });
+
         _logger.LogError(
             exception,
             "API Error: {Action} on {Resource} | User: {UserInfo} | CorrelationId: {CorrelationId} | Request: {RequestInfo} | Error: {ErrorMessage}",
@@ -63,6 +105,19 @@ public class AuditLoggingService : IAuditLoggingService
         var correlationIdValue = correlationId ?? GetCorrelationId();
         var userInfo = ExtractUserInfo(user);
 
+        // Log to database (async, fire-and-forget)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _databaseLogger.LogAuthenticationSuccessAsync(action, "Authentication", userInfo, correlationIdValue);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to log authentication success to database");
+            }
+        });
+
         _logger.LogInformation(
             "Authentication Success: {Action} | User: {UserInfo} | CorrelationId: {CorrelationId}",
             action, userInfo, correlationIdValue);
@@ -71,6 +126,19 @@ public class AuditLoggingService : IAuditLoggingService
     public void LogAuthenticationFailure(string action, string reason, string? correlationId = null)
     {
         var correlationIdValue = correlationId ?? GetCorrelationId();
+
+        // Log to database (async, fire-and-forget)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _databaseLogger.LogAuthenticationFailureAsync(action, "Authentication", reason, null, correlationIdValue);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to log authentication failure to database");
+            }
+        });
 
         _logger.LogWarning(
             "Authentication Failure: {Action} | Reason: {Reason} | CorrelationId: {CorrelationId}",
@@ -82,6 +150,19 @@ public class AuditLoggingService : IAuditLoggingService
         var correlationIdValue = correlationId ?? GetCorrelationId();
         var userInfo = ExtractUserInfo(user);
 
+        // Log to database (async, fire-and-forget)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _databaseLogger.LogAuthenticationSuccessAsync(action, resource, userInfo, correlationIdValue);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to log authorization success to database");
+            }
+        });
+
         _logger.LogInformation(
             "Authorization Success: {Action} on {Resource} | User: {UserInfo} | CorrelationId: {CorrelationId}",
             action, resource, userInfo, correlationIdValue);
@@ -92,6 +173,19 @@ public class AuditLoggingService : IAuditLoggingService
         var correlationIdValue = correlationId ?? GetCorrelationId();
         var userInfo = ExtractUserInfo(user);
 
+        // Log to database (async, fire-and-forget)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _databaseLogger.LogAuthenticationFailureAsync(action, resource, reason, userInfo, correlationIdValue);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to log authorization failure to database");
+            }
+        });
+
         _logger.LogWarning(
             "Authorization Failure: {Action} on {Resource} | User: {UserInfo} | Reason: {Reason} | CorrelationId: {CorrelationId}",
             action, resource, userInfo, reason, correlationIdValue);
@@ -101,6 +195,19 @@ public class AuditLoggingService : IAuditLoggingService
     {
         var correlationIdValue = correlationId ?? GetCorrelationId();
         var durationMs = duration.TotalMilliseconds;
+
+        // Log to database (async, fire-and-forget)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _databaseLogger.LogActiveDirectoryOperationAsync(operation, target, success, duration, errorMessage, null, correlationIdValue);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to log AD operation to database");
+            }
+        });
 
         if (success)
         {
