@@ -24,6 +24,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Register database logging service
 builder.Services.AddScoped<IDatabaseLoggingService, PostgresLoggingService>();
 
+// Register performance metrics service
+builder.Services.AddScoped<IPerformanceMetricsService, PerformanceMetricsService>();
+
 // Register audit logging service
 builder.Services.AddScoped<IAuditLoggingService, AuditLoggingService>();
 

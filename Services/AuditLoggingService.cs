@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using ActiveDirectory_API.Models;
 
 namespace ActiveDirectory_API.Services;
 
@@ -8,12 +9,14 @@ public class AuditLoggingService : IAuditLoggingService
     private readonly ILogger<AuditLoggingService> _logger;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IDatabaseLoggingService _databaseLogger;
+    private readonly IPerformanceMetricsService _performanceMetricsService;
 
-    public AuditLoggingService(ILogger<AuditLoggingService> logger, IHttpContextAccessor httpContextAccessor, IDatabaseLoggingService databaseLogger)
+    public AuditLoggingService(ILogger<AuditLoggingService> logger, IHttpContextAccessor httpContextAccessor, IDatabaseLoggingService databaseLogger, IPerformanceMetricsService performanceMetricsService)
     {
         _logger = logger;
         _httpContextAccessor = httpContextAccessor;
         _databaseLogger = databaseLogger;
+        _performanceMetricsService = performanceMetricsService;
     }
 
     public void LogApiRequest(string action, string resource, object? requestData, ClaimsPrincipal? user, string? correlationId = null)
@@ -58,6 +61,38 @@ public class AuditLoggingService : IAuditLoggingService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to log API response to database");
+            }
+        });
+
+        // Store performance metrics (async, fire-and-forget)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var httpContext = _httpContextAccessor.HttpContext;
+                var metric = new PerformanceMetric
+                {
+                    Endpoint = httpContext?.Request.Path.Value ?? "unknown",
+                    HttpMethod = httpContext?.Request.Method ?? "unknown",
+                    Action = action,
+                    Timestamp = DateTime.UtcNow,
+                    ResponseTimeMs = duration.TotalMilliseconds,
+                    StatusCode = statusCode,
+                    RequestSizeBytes = httpContext?.Request.ContentLength,
+                    ResponseSizeBytes = responseData != null ? JsonSerializer.Serialize(responseData).Length : null,
+                    CorrelationId = correlationIdValue,
+                    UserContext = userInfo,
+                    IpAddress = GetClientIpAddress(httpContext),
+                    UserAgent = httpContext?.Request.Headers.UserAgent.ToString(),
+                    IsSuccess = statusCode >= 200 && statusCode < 300,
+                    ErrorMessage = statusCode >= 400 ? $"HTTP {statusCode}" : null
+                };
+
+                await _performanceMetricsService.StoreMetricAsync(metric);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to store performance metric");
             }
         });
 
@@ -335,5 +370,27 @@ public class AuditLoggingService : IAuditLoggingService
         }
 
         return json;
+    }
+
+    private string? GetClientIpAddress(HttpContext? httpContext)
+    {
+        if (httpContext == null) return null;
+
+        // Try to get the real IP address from various headers
+        var forwardedHeader = httpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(forwardedHeader))
+        {
+            // X-Forwarded-For can contain multiple IPs, take the first one
+            var firstIp = forwardedHeader.Split(',')[0].Trim();
+            return firstIp;
+        }
+
+        var realIpHeader = httpContext.Request.Headers["X-Real-IP"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(realIpHeader))
+        {
+            return realIpHeader;
+        }
+
+        return httpContext.Connection.RemoteIpAddress?.ToString();
     }
 }

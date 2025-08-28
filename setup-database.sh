@@ -36,6 +36,24 @@ dotnet ef database update --context ApplicationDbContext
 if [ $? -eq 0 ]; then
     echo "✅ Database migrations applied successfully"
     echo ""
+    echo "📊 Database tables created:"
+    echo "  - audit_logs (for comprehensive audit logging)"
+    echo "  - performance_metrics (for performance monitoring)"
+    echo ""
+    echo "🔍 Performance metrics include:"
+    echo "  - Response times and performance categorization"
+    echo "  - Request/response sizes"
+    echo "  - Success/failure rates"
+    echo "  - Endpoint-specific analytics"
+    echo "  - Time-based performance trends"
+else
+    echo "❌ Failed to apply database migrations"
+    exit 1
+fi
+
+if [ $? -eq 0 ]; then
+    echo "✅ Database migrations applied successfully"
+    echo ""
     echo "🎉 Database setup complete!"
     echo ""
     echo "Next steps:"
