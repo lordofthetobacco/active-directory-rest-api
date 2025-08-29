@@ -64,6 +64,7 @@ _ReSharper*/
 appsettings.Development.json
 appsettings.Local.json
 appsettings.*.local.json
+appsettings.json
 
 # Ignore user secrets
 *.usersecrets.json
