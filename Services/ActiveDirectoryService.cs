@@ -156,19 +156,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
         }
     }
 
-    public async Task<bool> AuthenticateUserAsync(string username, string password)
-    {
-        try
-        {
-            using var context = CreatePrincipalContext();
-            return await Task.FromResult(context.ValidateCredentials(username, password));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error authenticating user {Username}", username);
-            throw;
-        }
-    }
+
 
     public async Task<bool> ChangePasswordAsync(string username, string newPassword)
     {
@@ -619,11 +607,17 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 Filter = "(&(objectClass=user)(objectCategory=person))"
             };
             
+            // Always include distinguishedName as it's required for the response
+            searcher.PropertiesToLoad.Add("distinguishedName");
+            
             if (attributes != null && attributes.Any())
             {
                 foreach (var attr in attributes)
                 {
-                    searcher.PropertiesToLoad.Add(attr);
+                    if (!attr.Equals("distinguishedName", StringComparison.OrdinalIgnoreCase))
+                    {
+                        searcher.PropertiesToLoad.Add(attr);
+                    }
                 }
             }
             else
@@ -681,11 +675,17 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 Filter = $"(&(objectClass=user)(objectCategory=person)(sAMAccountName={username}))"
             };
             
+            // Always include distinguishedName as it's required for the response
+            searcher.PropertiesToLoad.Add("distinguishedName");
+            
             if (attributes != null && attributes.Any())
             {
                 foreach (var attr in attributes)
                 {
-                    searcher.PropertiesToLoad.Add(attr);
+                    if (!attr.Equals("distinguishedName", StringComparison.OrdinalIgnoreCase))
+                    {
+                        searcher.PropertiesToLoad.Add(attr);
+                    }
                 }
             }
             else
@@ -738,11 +738,17 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 Filter = "(objectClass=group)"
             };
             
+            // Always include distinguishedName as it's required for the response
+            searcher.PropertiesToLoad.Add("distinguishedName");
+            
             if (attributes != null && attributes.Any())
             {
                 foreach (var attr in attributes)
                 {
-                    searcher.PropertiesToLoad.Add(attr);
+                    if (!attr.Equals("distinguishedName", StringComparison.OrdinalIgnoreCase))
+                    {
+                        searcher.PropertiesToLoad.Add(attr);
+                    }
                 }
             }
             else
@@ -800,11 +806,17 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 Filter = $"(&(objectClass=group)(sAMAccountName={groupName}))"
             };
             
+            // Always include distinguishedName as it's required for the response
+            searcher.PropertiesToLoad.Add("distinguishedName");
+            
             if (attributes != null && attributes.Any())
             {
                 foreach (var attr in attributes)
                 {
-                    searcher.PropertiesToLoad.Add(attr);
+                    if (!attr.Equals("distinguishedName", StringComparison.OrdinalIgnoreCase))
+                    {
+                        searcher.PropertiesToLoad.Add(attr);
+                    }
                 }
             }
             else
@@ -857,11 +869,17 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 Filter = "(objectClass=organizationalUnit)"
             };
             
+            // Always include distinguishedName as it's required for the response
+            searcher.PropertiesToLoad.Add("distinguishedName");
+            
             if (attributes != null && attributes.Any())
             {
                 foreach (var attr in attributes)
                 {
-                    searcher.PropertiesToLoad.Add(attr);
+                    if (!attr.Equals("distinguishedName", StringComparison.OrdinalIgnoreCase))
+                    {
+                        searcher.PropertiesToLoad.Add(attr);
+                    }
                 }
             }
             else
@@ -919,11 +937,17 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 Filter = $"(&(objectClass=organizationalUnit)(name={ouName}))"
             };
             
+            // Always include distinguishedName as it's required for the response
+            searcher.PropertiesToLoad.Add("distinguishedName");
+            
             if (attributes != null && attributes.Any())
             {
                 foreach (var attr in attributes)
                 {
-                    searcher.PropertiesToLoad.Add(attr);
+                    if (!attr.Equals("distinguishedName", StringComparison.OrdinalIgnoreCase))
+                    {
+                        searcher.PropertiesToLoad.Add(attr);
+                    }
                 }
             }
             else

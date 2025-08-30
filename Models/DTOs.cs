@@ -56,11 +56,7 @@ public class CreateOrganizationalUnitDto
     public string ParentOu { get; set; } = string.Empty;
 }
 
-public class AuthenticationRequest
-{
-    public string Username { get; set; } = string.Empty;
-    public string Password { get; set; } = string.Empty;
-}
+
 
 public class PasswordChangeRequest
 {

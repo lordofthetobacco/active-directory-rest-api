@@ -265,9 +265,39 @@ curl -H "X-API-Key: your-api-key-1" \
      http://localhost:5000/user
 ```
 
+## API Key Management
+
+The API now uses a PostgreSQL database to store and manage API keys instead of configuration files. This provides:
+
+- **Dynamic Key Management**: Add/remove API keys without restarting the application
+- **Key Tracking**: Monitor when keys were created and last used
+- **Key Status**: Activate/deactivate keys as needed
+- **Audit Trail**: Track who created each key and when
+
+### Managing API Keys
+
+A separate Blazor Server application (`ApiKeyManager`) is provided for managing API keys:
+
+1. **Secure Interface**: Uses Entra ID (Azure AD) for authentication
+2. **Full CRUD Operations**: Create, read, update, delete API keys
+3. **Key Generation**: Automatically generates secure 32-character keys
+4. **Status Management**: Activate/deactivate keys as needed
+
+### Running the API Key Manager
+
+```bash
+cd ApiKeyManager
+dotnet restore
+dotnet run
+```
+
+Access the management interface at `https://localhost:7000` after configuring Entra ID authentication.
+
+See the `ApiKeyManager/README.md` for detailed setup and configuration instructions.
+
 ## Database Schema
 
-The API automatically creates a PostgreSQL database with the following table:
+The API automatically creates a PostgreSQL database with the following tables:
 
 ### ApiLogs
 
@@ -281,6 +311,19 @@ The API automatically creates a PostgreSQL database with the following table:
 | StatusCode | int | HTTP status code returned |
 | ResponseTime | bigint | Response time in milliseconds |
 | ErrorMessage | text | Error message if any (nullable) |
+
+### ApiKeys
+
+| Column | Type | Description |
+|--------|------|-------------|
+| Id | int | Primary key |
+| Key | varchar(100) | Unique API key (32 characters) |
+| Name | varchar(100) | Human-readable name |
+| Description | varchar(500) | Optional description |
+| IsActive | boolean | Whether the key is active |
+| CreatedAt | timestamp | When the key was created |
+| LastUsedAt | timestamp | When the key was last used |
+| CreatedBy | varchar(100) | User who created the key |
 
 ## Development
 

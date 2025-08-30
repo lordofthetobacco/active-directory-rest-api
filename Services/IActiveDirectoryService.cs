@@ -10,7 +10,7 @@ public interface IActiveDirectoryService
     Task<bool> CreateUserAsync(CreateUserDto userDto);
     Task<bool> UpdateUserAsync(string username, UpdateUserDto userDto);
     Task<bool> DeleteUserAsync(string username);
-    Task<bool> AuthenticateUserAsync(string username, string password);
+
     Task<bool> ChangePasswordAsync(string username, string newPassword);
     Task<bool> SetPasswordNeverExpiresAsync(string username, bool neverExpires);
     Task<bool> SetPasswordExpiresAsync(string username, bool expires);

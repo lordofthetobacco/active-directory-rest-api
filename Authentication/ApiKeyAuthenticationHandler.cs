@@ -3,41 +3,46 @@ using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using active_directory_rest_api.Models;
+using active_directory_rest_api.Services;
 
 namespace active_directory_rest_api.Authentication;
 
 public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
-    private readonly ApiKeyConfig _apiKeyConfig;
+    private readonly IApiKeyService _apiKeyService;
 
     public ApiKeyAuthenticationHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
-        IOptions<ApiKeyConfig> apiKeyConfig)
+        IApiKeyService apiKeyService)
         : base(options, logger, encoder)
     {
-        _apiKeyConfig = apiKeyConfig.Value;
+        _apiKeyService = apiKeyService;
     }
 
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         if (!Request.Headers.ContainsKey("X-API-Key"))
         {
-            return Task.FromResult(AuthenticateResult.Fail("API Key header not found."));
+            return AuthenticateResult.Fail("API Key header not found.");
         }
 
         var providedApiKey = Request.Headers["X-API-Key"].ToString();
 
         if (string.IsNullOrEmpty(providedApiKey))
         {
-            return Task.FromResult(AuthenticateResult.Fail("API Key is empty."));
+            return AuthenticateResult.Fail("API Key is empty.");
         }
 
-        if (!_apiKeyConfig.ValidKeys.Contains(providedApiKey))
+        var isValid = await _apiKeyService.IsValidApiKeyAsync(providedApiKey);
+        if (!isValid)
         {
-            return Task.FromResult(AuthenticateResult.Fail("Invalid API Key."));
+            return AuthenticateResult.Fail("Invalid API Key.");
         }
+
+        // Update last used timestamp
+        await _apiKeyService.UpdateLastUsedAsync(providedApiKey);
 
         var claims = new[]
         {
@@ -49,7 +54,7 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
         var principal = new ClaimsPrincipal(identity);
         var ticket = new AuthenticationTicket(principal, Scheme.Name);
 
-        return Task.FromResult(AuthenticateResult.Success(ticket));
+        return AuthenticateResult.Success(ticket);
     }
 
     protected override async Task HandleChallengeAsync(AuthenticationProperties properties)

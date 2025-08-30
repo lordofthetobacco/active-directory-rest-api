@@ -7,7 +7,7 @@ GET /user/:user
 GET /user/:user/queryable?attributes=name,email,displayName
 GET /user/:user/exists
 GET /user/:user/member-of/:group
-POST /user/:user/authenticate
+
 PUT /user/:user/password
 PUT /user/:user/password-never-expires
 PUT /user/:user/password-expires

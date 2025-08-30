@@ -18,14 +18,15 @@ builder.Services.AddSwaggerGen();
 // Configuration
 builder.Services.Configure<ActiveDirectoryConfig>(
     builder.Configuration.GetSection("ActiveDirectory"));
-builder.Services.Configure<ApiKeyConfig>(
-    builder.Configuration.GetSection("ApiKeys"));
 builder.Services.Configure<LoggingDbConfig>(
     builder.Configuration.GetSection("LoggingDb"));
 
 // Database Context
 builder.Services.AddDbContext<LoggingDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Services
+builder.Services.AddScoped<IApiKeyService, ApiKeyService>();
 
 // Authentication
 builder.Services.AddAuthentication("ApiKey")

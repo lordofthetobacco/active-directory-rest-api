@@ -264,38 +264,7 @@ public class UsersController : ControllerBase
         }
     }
 
-    [HttpPost("{username}/authenticate")]
-    public async Task<ActionResult<ApiResponse<bool>>> AuthenticateUser(string username, [FromBody] AuthenticationRequest request)
-    {
-        try
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(new ApiResponse<bool>
-                {
-                    Success = false,
-                    Message = "Invalid model state"
-                });
-            }
 
-            var result = await _adService.AuthenticateUserAsync(username, request.Password);
-            return Ok(new ApiResponse<bool>
-            {
-                Success = true,
-                Message = "Authentication completed",
-                Data = result
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error authenticating user {Username}", username);
-            return StatusCode(500, new ApiResponse<bool>
-            {
-                Success = false,
-                Message = "Internal server error"
-            });
-        }
-    }
 
     [HttpPut("{username}/password")]
     public async Task<ActionResult<ApiResponse<bool>>> ChangePassword(string username, [FromBody] PasswordChangeRequest request)

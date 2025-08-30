@@ -10,6 +10,7 @@ public class LoggingDbContext : DbContext
     }
 
     public DbSet<ApiLog> ApiLogs { get; set; }
+    public DbSet<ApiKey> ApiKeys { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -22,6 +23,19 @@ public class LoggingDbContext : DbContext
             entity.Property(e => e.ApiKey).HasMaxLength(100);
             entity.Property(e => e.StatusCode).IsRequired();
             entity.Property(e => e.ResponseTime).IsRequired();
+        });
+
+        modelBuilder.Entity<ApiKey>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Key).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.CreatedBy).HasMaxLength(100);
+            
+            // Make the Key unique
+            entity.HasIndex(e => e.Key).IsUnique();
         });
     }
 }
